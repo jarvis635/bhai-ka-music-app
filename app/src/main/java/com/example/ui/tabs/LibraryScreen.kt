@@ -88,7 +88,7 @@ fun LibraryScreen(
         }
 
         // Categories List
-        items(categories.size) { index ->
+        items(categories.size, key = { index -> categories[index].title }) { index ->
             val cat = categories[index]
             Row(
                 modifier = Modifier

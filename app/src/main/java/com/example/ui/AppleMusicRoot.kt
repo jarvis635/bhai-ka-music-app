@@ -2,11 +2,8 @@ package com.example.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
@@ -35,34 +32,24 @@ import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material.icons.outlined.Radio
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.data.model.Song
 import com.example.data.repository.SongRepository
 import com.example.player.MusicPlayerController
 import com.example.ui.components.ExpandedPlayer
@@ -87,7 +74,6 @@ fun AppleMusicRoot(
     modifier: Modifier = Modifier
 ) {
     val coroutineScope = rememberCoroutineScope()
-    val density = LocalDensity.current
 
     val currentSong by controller.currentSong.collectAsState()
     val isPlaying by controller.isPlaying.collectAsState()
@@ -128,28 +114,26 @@ fun AppleMusicRoot(
             .background(Color.Black) // Dark background visible during sheet scale-down
     ) {
         val screenHeightPx = constraints.maxHeight.toFloat()
-        val screenHeightDp = maxHeight
 
         // Dynamic background scale & corner radius based on sheet expansion progress
-        // Matches saulsharma/apple-music-sheet-ui: scale from 1.0 down to 0.92, corner radius up to 36dp
-        val currentProgress = sheetProgress.value.coerceIn(0f, 1f)
-        val bgScale = 1.0f - (0.08f * currentProgress)
-        val bgTranslationY = (1.0f - bgScale) * -120f
-        val bgCornerRadius = (36f * currentProgress).dp
-
-        // Dimmer scrim opacity
-        val scrimAlpha = currentProgress * 0.45f
+        // Defer sheetProgress.value read to graphicsLayer lambda to prevent top-level recompositions on low-end devices
+        val cornerShape36 = remember { RoundedCornerShape(36.dp) }
 
         // --- LAYER 1: Background Main Content (Tabs + Mini Player + Bottom Bar) ---
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer {
+                    val currentProgress = sheetProgress.value.coerceIn(0f, 1f)
+                    val bgScale = 1.0f - (0.08f * currentProgress)
+                    val bgTranslationY = (1.0f - bgScale) * -120f
+                    val bgCornerRadius = (36f * currentProgress).dp
+
                     scaleX = bgScale
                     scaleY = bgScale
                     translationY = bgTranslationY
                     clip = currentProgress > 0.01f
-                    shape = RoundedCornerShape(bgCornerRadius)
+                    shape = if (currentProgress > 0.01f) RoundedCornerShape(bgCornerRadius) else cornerShape36
                 }
                 .background(Color(0xFF0D0D0E))
         ) {
@@ -208,26 +192,28 @@ fun AppleMusicRoot(
                 }
             }
 
-            // Dark scrim overlay when sheet is expanding
-            if (scrimAlpha > 0.01f) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = scrimAlpha))
-                        .clickable(enabled = isSheetExpanded) {
-                            coroutineScope.launch {
-                                sheetProgress.animateTo(
-                                    0f,
-                                    animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioLowBouncy,
-                                        stiffness = Spring.StiffnessMediumLow
-                                    )
+            // Dark scrim overlay when sheet is expanding (reading sheetProgress inside graphicsLayer to avoid recomposition)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        val currentProgress = sheetProgress.value.coerceIn(0f, 1f)
+                        alpha = currentProgress * 0.45f
+                    }
+                    .background(Color.Black)
+                    .clickable(enabled = isSheetExpanded) {
+                        coroutineScope.launch {
+                            sheetProgress.animateTo(
+                                0f,
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioLowBouncy,
+                                    stiffness = Spring.StiffnessMediumLow
                                 )
-                                isSheetExpanded = false
-                            }
+                            )
+                            isSheetExpanded = false
                         }
-                )
-            }
+                    }
+            )
 
             // Bottom Navigation Bar & Mini Player Container
             Column(
@@ -237,72 +223,70 @@ fun AppleMusicRoot(
             ) {
                 // Mini Player docked above NavigationBar
                 if (currentSong != null) {
-                    val miniPlayerAlpha = (1f - (currentProgress * 2.5f)).coerceIn(0f, 1f)
-                    if (miniPlayerAlpha > 0.01f) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 6.dp)
-                                .graphicsLayer {
-                                    alpha = miniPlayerAlpha
-                                    translationY = (1f - miniPlayerAlpha) * 20f
-                                }
-                                .draggable(
-                                    orientation = Orientation.Vertical,
-                                    state = rememberDraggableState { delta ->
-                                        // Dragging up (delta < 0) increases sheet progress
-                                        if (delta < 0) {
-                                            coroutineScope.launch {
-                                                val next = (sheetProgress.value + (-delta / screenHeightPx)).coerceIn(0f, 1f)
-                                                sheetProgress.snapTo(next)
-                                            }
-                                        }
-                                    },
-                                    onDragStopped = { velocity ->
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 6.dp)
+                            .graphicsLayer {
+                                val currentProgress = sheetProgress.value.coerceIn(0f, 1f)
+                                val miniPlayerAlpha = (1f - (currentProgress * 2.5f)).coerceIn(0f, 1f)
+                                alpha = miniPlayerAlpha
+                                translationY = (1f - miniPlayerAlpha) * 20f
+                            }
+                            .draggable(
+                                orientation = Orientation.Vertical,
+                                state = rememberDraggableState { delta ->
+                                    if (delta < 0) {
                                         coroutineScope.launch {
-                                            if (velocity < -800f || sheetProgress.value > 0.2f) {
-                                                sheetProgress.animateTo(
-                                                    1f,
-                                                    animationSpec = spring(
-                                                        dampingRatio = Spring.DampingRatioLowBouncy,
-                                                        stiffness = Spring.StiffnessMediumLow
-                                                    )
-                                                )
-                                                isSheetExpanded = true
-                                            } else {
-                                                sheetProgress.animateTo(
-                                                    0f,
-                                                    animationSpec = spring(
-                                                        dampingRatio = Spring.DampingRatioLowBouncy,
-                                                        stiffness = Spring.StiffnessMediumLow
-                                                    )
-                                                )
-                                                isSheetExpanded = false
-                                            }
+                                            val next = (sheetProgress.value + (-delta / screenHeightPx)).coerceIn(0f, 1f)
+                                            sheetProgress.snapTo(next)
                                         }
-                                    }
-                                )
-                        ) {
-                            MiniPlayer(
-                                song = currentSong,
-                                isPlaying = isPlaying,
-                                progressFraction = progressFraction,
-                                onExpandClick = {
-                                    coroutineScope.launch {
-                                        sheetProgress.animateTo(
-                                            1f,
-                                            animationSpec = spring(
-                                                dampingRatio = Spring.DampingRatioLowBouncy,
-                                                stiffness = Spring.StiffnessMediumLow
-                                            )
-                                        )
-                                        isSheetExpanded = true
                                     }
                                 },
-                                onPlayPauseClick = { controller.togglePlayPause() },
-                                onNextClick = { controller.playNext() }
+                                onDragStopped = { velocity ->
+                                    coroutineScope.launch {
+                                        if (velocity < -800f || sheetProgress.value > 0.2f) {
+                                            sheetProgress.animateTo(
+                                                1f,
+                                                animationSpec = spring(
+                                                    dampingRatio = Spring.DampingRatioLowBouncy,
+                                                    stiffness = Spring.StiffnessMediumLow
+                                                )
+                                            )
+                                            isSheetExpanded = true
+                                        } else {
+                                            sheetProgress.animateTo(
+                                                0f,
+                                                animationSpec = spring(
+                                                    dampingRatio = Spring.DampingRatioLowBouncy,
+                                                    stiffness = Spring.StiffnessMediumLow
+                                                )
+                                            )
+                                            isSheetExpanded = false
+                                        }
+                                    }
+                                }
                             )
-                        }
+                    ) {
+                        MiniPlayer(
+                            song = currentSong,
+                            isPlaying = isPlaying,
+                            progressFraction = progressFraction,
+                            onExpandClick = {
+                                coroutineScope.launch {
+                                    sheetProgress.animateTo(
+                                        1f,
+                                        animationSpec = spring(
+                                            dampingRatio = Spring.DampingRatioLowBouncy,
+                                            stiffness = Spring.StiffnessMediumLow
+                                        )
+                                    )
+                                    isSheetExpanded = true
+                                }
+                            },
+                            onPlayPauseClick = { controller.togglePlayPause() },
+                            onNextClick = { controller.playNext() }
+                        )
                     }
                 }
 
@@ -348,18 +332,17 @@ fun AppleMusicRoot(
         }
 
         // --- LAYER 2: Expanding Full Screen Player Sheet ---
-        if (currentSong != null && sheetProgress.value > 0.001f) {
-            // Sheet translation Y: 0 when progress = 1f, screenHeightPx when progress = 0f
-            val sheetTranslationY = (1f - sheetProgress.value) * screenHeightPx
-
+        if (currentSong != null && (isSheetExpanded || sheetProgress.value > 0.001f)) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .offset { IntOffset(0, sheetTranslationY.roundToInt()) }
+                    .offset {
+                        val sheetTranslationY = (1f - sheetProgress.value) * screenHeightPx
+                        IntOffset(0, sheetTranslationY.roundToInt())
+                    }
                     .draggable(
                         orientation = Orientation.Vertical,
                         state = rememberDraggableState { delta ->
-                            // Dragging down (delta > 0) reduces progress
                             coroutineScope.launch {
                                 val deltaRatio = delta / screenHeightPx
                                 val next = (sheetProgress.value - deltaRatio).coerceIn(0f, 1f)
@@ -368,7 +351,6 @@ fun AppleMusicRoot(
                         },
                         onDragStopped = { velocity ->
                             coroutineScope.launch {
-                                // Threshold: if velocity > 800f (flick down) or progress < 0.7f, dismiss!
                                 val shouldDismiss = velocity > 800f || sheetProgress.value < 0.72f
                                 if (shouldDismiss) {
                                     sheetProgress.animateTo(

@@ -56,7 +56,10 @@ fun MiniPlayer(
 ) {
     if (song == null) return
 
-    val shape = RoundedCornerShape(14.dp)
+    val shape = remember { RoundedCornerShape(14.dp) }
+    val artworkShape = remember { RoundedCornerShape(8.dp) }
+    val miniBgColor = remember { Color(0xFF242426).copy(alpha = 0.95f) }
+    val borderColor = remember { Color.White.copy(alpha = 0.12f) }
 
     Surface(
         modifier = modifier
@@ -65,10 +68,10 @@ fun MiniPlayer(
             .padding(horizontal = 10.dp)
             .shadow(elevation = 12.dp, shape = shape, spotColor = Color.Black.copy(alpha = 0.5f))
             .clip(shape)
-            .background(Color(0xFF242426).copy(alpha = 0.95f))
-            .border(width = 0.5.dp, color = Color.White.copy(alpha = 0.12f), shape = shape)
+            .background(miniBgColor)
+            .border(width = 0.5.dp, color = borderColor, shape = shape)
             .clickable(onClick = onExpandClick),
-        color = Color(0xFF242426).copy(alpha = 0.95f),
+        color = miniBgColor,
         shape = shape
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -85,7 +88,7 @@ fun MiniPlayer(
                     contentDescription = "Artwork for ${song.title}",
                     modifier = Modifier
                         .size(42.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(artworkShape)
                         .background(Color(0xFF333333)),
                     contentScale = ContentScale.Crop
                 )

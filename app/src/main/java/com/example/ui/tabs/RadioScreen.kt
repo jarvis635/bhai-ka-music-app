@@ -101,7 +101,7 @@ fun RadioScreen(
                 contentPadding = PaddingValues(horizontal = 20.dp),
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                items(liveStations) { station ->
+                items(liveStations, key = { it.id }) { station ->
                     Surface(
                         modifier = Modifier
                             .width(260.dp)
@@ -199,7 +199,7 @@ fun RadioScreen(
             )
         }
 
-        items(genreStations) { station ->
+        items(genreStations, key = { it.id }) { station ->
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

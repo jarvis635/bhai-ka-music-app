@@ -448,14 +448,17 @@ class MusicPlaybackService : Service(), AudioManager.OnAudioFocusChangeListener 
                     if (isPrepared) {
                         mediaPlayer?.let { mp ->
                             if (mp.isPlaying) {
-                                PlaybackStateManager.currentPositionMs.value = mp.currentPosition
+                                val current = mp.currentPosition
+                                if (PlaybackStateManager.currentPositionMs.value != current) {
+                                    PlaybackStateManager.currentPositionMs.value = current
+                                }
                             }
                         }
                     }
                 } catch (e: Exception) {
                     // Ignore transient exceptions during state changes
                 }
-                delay(250)
+                delay(500)
             }
         }
     }
