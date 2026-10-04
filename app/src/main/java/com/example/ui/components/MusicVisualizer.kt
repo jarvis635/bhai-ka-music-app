@@ -80,8 +80,10 @@ fun MusicVisualizer(
     val heights = if (isPlaying) {
         listOf(h1, h2, h3, h4)
     } else {
-        listOf(0.25f, 0.25f, 0.25f, 0.25f)
+        remember { listOf(0.25f, 0.25f, 0.25f, 0.25f) }
     }
+
+    val shape = remember { RoundedCornerShape(2.dp) }
 
     Row(
         modifier = modifier,
@@ -94,7 +96,7 @@ fun MusicVisualizer(
                 modifier = Modifier
                     .width(barWidth)
                     .height(animatedHeight)
-                    .background(barColor, RoundedCornerShape(2.dp))
+                    .background(barColor, shape)
             )
         }
     }

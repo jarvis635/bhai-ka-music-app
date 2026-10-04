@@ -148,11 +148,15 @@ fun ExpandedPlayer(
         )
     }
 
+    val topCornerShape = remember { RoundedCornerShape(topStart = 38.dp, topEnd = 38.dp) }
+    val artworkCornerShape = remember { RoundedCornerShape(16.dp) }
+    val handleBarShape = remember { CircleShape }
+
     Box(
         modifier = modifier
             .testTag("expanded_player_root")
             .fillMaxSize()
-            .clip(RoundedCornerShape(topStart = 38.dp, topEnd = 38.dp))
+            .clip(topCornerShape)
             .background(backgroundBrush)
             .statusBarsPadding()
             .navigationBarsPadding()
@@ -169,7 +173,7 @@ fun ExpandedPlayer(
                     .padding(top = 10.dp, bottom = 14.dp)
                     .width(40.dp)
                     .height(5.dp)
-                    .clip(CircleShape)
+                    .clip(handleBarShape)
                     .background(Color.White.copy(alpha = 0.45f))
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
@@ -196,10 +200,10 @@ fun ExpandedPlayer(
                                 .scale(artworkScale)
                                 .shadow(
                                     elevation = if (isPlaying) 28.dp else 12.dp,
-                                    shape = RoundedCornerShape(16.dp),
+                                    shape = artworkCornerShape,
                                     spotColor = Color.Black.copy(alpha = 0.6f)
                                 )
-                                .clip(RoundedCornerShape(16.dp)),
+                                .clip(artworkCornerShape),
                             contentAlignment = Alignment.Center
                         ) {
                             AsyncImage(

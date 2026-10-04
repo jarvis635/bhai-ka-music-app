@@ -174,7 +174,7 @@ fun SearchScreen(
                     }
                 }
             } else {
-                items(filteredSongs) { song ->
+                items(filteredSongs, key = { it.id }) { song ->
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
